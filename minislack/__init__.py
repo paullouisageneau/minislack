@@ -1,0 +1,2 @@
+
+from .minislack import main
