@@ -99,7 +99,13 @@ class Interface:
             def process(ch):
                 if ch in (curses.KEY_ENTER, 10, 13):
                     if self.input_channel and len(self.input) > 0:
-                        self.send(self.input_channel, self.input)
+                        if self.input[0] == '!':
+                            channel, _, message = self.input[1:].partition(' ')
+                            self.input_channel = channel.strip()
+                            self.input = message
+                        self.input = self.input.strip()
+                        if len(self.input) > 0:
+                            self.send(self.input_channel, self.input)
                         self.input = ""
                 elif ch in (curses.KEY_BACKSPACE, curses.KEY_DC, 127):
                     if len(self.input) > 0:
