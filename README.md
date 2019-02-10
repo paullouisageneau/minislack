@@ -5,6 +5,11 @@ A mini terminal client for [Slack](https://slack.com)
 
 It shows what happens in the different channels on a single interleaved feed and allows you to post. Otherwise, it is as limited as it gets.
 
+Setup
+-----
+
+Install the dependency [python-slackclient](https://github.com/slackapi/python-slackclient).
+
 Usage
 -----
 
