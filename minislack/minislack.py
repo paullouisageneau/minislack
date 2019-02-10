@@ -1,12 +1,16 @@
 
 import sys
+import os
 
 from .client import Client
 
 
 def main():
     try:
-        client = Client()
+        token = os.environ.get('SLACK_API_TOKEN')
+        if not token:
+            raise Exception("The environment variable SLACK_API_TOKEN is not set")
+        client = Client(token)
         client.run()
     except KeyboardInterrupt:
         return 0

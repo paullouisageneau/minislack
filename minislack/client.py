@@ -1,51 +1,52 @@
 
-import os
 import time
 import re
 
 from slackclient import SlackClient
 from .interface import Interface
 
-MSG_CONNECTING = "Connecting..."
-MSG_CLOSING = "Closed."
-
-RTM_READ_DELAY = 0.1
+RTM_READ_DELAY = 100
 
 
 class Client:
-    def __init__(self):
+    def __init__(self, token):
         self.interface = Interface(lambda c, m: self.send(c, m))
-        self.sc = None
-        self.user_id = None
+        self.connect(token)
+        self.last_send_channel = "?"
 
-    def run(self):
-        print(MSG_CONNECTING)
-        token = os.environ.get('SLACK_API_TOKEN')
-
+    def connect(self, token):
         self.sc = SlackClient(token)
         auth = self.sc.api_call('auth.test')
         self.user_id = auth['user_id'] if 'user_id' in auth else None
-
         if not self.user_id:
             raise Exception('Unable to authenticate to Slack service')
-
         if not self.sc.rtm_connect(auto_reconnect=True):
             raise Exception("Unable to connect to Slack RTM service")
 
+    def run(self):
         self.interface.start()
         try:
             while self.sc.server.connected:
+                time.sleep(RTM_READ_DELAY/1000)
                 for event in self.sc.rtm_read():
-                    if 'type' in event and 'text' in event and event['type'] == 'message':
-                        channel = self.resolve_channel(event['channel'])
-                        user = self.resolve_user(event['user']) if 'user' in event else None
-                        text = self.process_text(event['text'])
-                        message = "{}: {}".format(user, text) if user else text
-                        self.interface.recv(channel, message)
-                time.sleep(RTM_READ_DELAY)
+                    if 'type' not in event:
+                        continue
+                    event_type = event['type']
+                    if event_type == 'message':
+                        if 'text' in event and 'channel' in event:
+                            text = self.process_text(event['text'])
+                            channel = self.resolve_channel(event['channel'])
+                            user = self.resolve_user(event['user']) if 'user' in event else None
+                            message = "{}: {}".format(user, text) if user else text
+                            self.interface.recv(channel, message)
+                    elif event_type == 'error':
+                        if 'error' in event:
+                            error = event['error']
+                            msg = error.get('msg', None)
+                            message = message = "!error" + (": {}".format(msg) if msg else "")
+                            self.interface.recv(self.last_send_channel, message)
         finally:
             self.interface.stop()
-            print(MSG_CLOSING)
 
     def process_text(self, text):
 
@@ -80,6 +81,7 @@ class Client:
         text = text.replace('>', '&gt;')
         # Send
         self.sc.rtm_send_message(channel, text)
+        self.last_send_channel = channel
         # Display
         self.interface.recv(channel, message)
 

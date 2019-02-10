@@ -7,6 +7,8 @@ import re
 
 DEFAULT_CHANNEL = "random"
 
+GETCH_READ_TIMEOUT = 100
+
 NORMAL_COLOR_PAIR = 1
 HIGHLIGHT_COLOR_PAIR = 2
 INPUT_COLOR_PAIR = 3
@@ -68,7 +70,7 @@ class Interface:
                         win.addstr("{}> ".format(channel), attr)
                     else:
                         win.addstr("> ", attr)
-                    blink = re.search(' !\\w+', message) is not None
+                    blink = re.search('(^|\\W)!\\w+', message) is not None
                     attr = curses.color_pair(NORMAL_COLOR_PAIR) | (curses.A_BLINK if blink else 0)
                     win.addstr("{}\n".format(message), attr)
                     index += 1
@@ -109,7 +111,7 @@ class Interface:
                     if not self.input_channel:
                         self.input_channel = self.channel
 
-            stdscr.timeout(100)
+            stdscr.timeout(GETCH_READ_TIMEOUT)
             while True:
                 ch = stdscr.getch()
                 with self.condition:
