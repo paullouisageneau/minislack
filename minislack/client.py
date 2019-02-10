@@ -51,7 +51,7 @@ class Client:
     def process_text(self, text):
 
         def format_user(user_id):
-            return ('!' if user_id == self.user else '@') + self.resolve_user(user_id)
+            return ('!' if user_id == self.user_id else '@') + self.resolve_user(user_id)
 
         def format_channel(channel_id):
             return '#' + self.resolve_channel(channel_id)
