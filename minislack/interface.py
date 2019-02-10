@@ -19,6 +19,7 @@ class Interface:
         self.send_func = send_func
         self.messages = []
         self.input = ""
+        self.input_position = 0
         self.input_channel = None
         self.channel = DEFAULT_CHANNEL
         self.condition = threading.Condition()
@@ -37,10 +38,12 @@ class Interface:
         with self.condition:
             self.messages = []
             self.input = ""
+            self.input_position = 0
             self.input_channel = None
             self.condition.notify()
 
     def start(self):
+
         def curses_main(stdscr):
             if curses.has_colors():
                 curses.start_color()
@@ -82,7 +85,10 @@ class Interface:
                 input_win.attrset(attr)
                 input_win.erase()
                 if self.input_channel:
-                    input_win.addstr(0, 0, "{}> {}".format(self.input_channel, self.input))
+                    channel = self.input_channel
+                    position = self.input_position
+                    input_win.addstr(0, 0, "{}> {}".format(channel, self.input))
+                    input_win.addstr(0, 0, "{}> {}".format(channel, self.input[:position]))
                 input_win.refresh()
 
             input_thread = threading.Thread(target=input_main, args=(stdscr,))
@@ -110,16 +116,24 @@ class Interface:
                         if len(self.input) > 0:
                             self.send(self.input_channel, self.input)
                         self.input = ""
+                        self.input_position = 0
                 elif ch in (curses.KEY_BACKSPACE, curses.KEY_DC, 127):
                     if len(self.input) > 0:
                         self.input = self.input[:-1]
                     if len(self.input) == 0:
                         self.input_channel = None
+                elif ch == curses.KEY_LEFT:
+                    self.input_position = max(self.input_position - 1, 0)
+                elif ch == curses.KEY_RIGHT:
+                    self.input_position = min(self.input_position + 1, len(self.input))
                 elif ch > 0 and ch < 256:
                     input_bytes += ch.to_bytes(1, byteorder='big')
                     decoded = input_bytes.decode(errors='ignore')
                     if len(decoded) > 0:
-                        self.input += decoded
+                        before = self.input[:self.input_position]
+                        after = self.input[self.input_position:]
+                        self.input = before + decoded + after
+                        self.input_position += len(decoded)
                         input_bytes = b""
                         if not self.input_channel:
                             self.input_channel = self.channel
