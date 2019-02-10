@@ -5,7 +5,7 @@ import re
 from slackclient import SlackClient
 from .interface import Interface
 
-RTM_READ_DELAY = 100
+RTM_READ_DELAY = 200
 
 
 class Client:
