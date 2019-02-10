@@ -1,6 +1,5 @@
 
 import curses
-import curses.ascii
 import threading
 import _thread
 import re
