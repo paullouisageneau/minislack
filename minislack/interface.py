@@ -96,7 +96,10 @@ class Interface:
             input_thread.join()
 
         def input_main(stdscr):
+            input_bytes = b""
+
             def process(ch):
+                nonlocal input_bytes
                 if ch in (curses.KEY_ENTER, 10, 13):
                     if self.input_channel and len(self.input) > 0:
                         if self.input[0] == '!':
@@ -112,10 +115,14 @@ class Interface:
                         self.input = self.input[:-1]
                     if len(self.input) == 0:
                         self.input_channel = None
-                elif curses.ascii.isprint(ch):
-                    self.input += chr(ch)
-                    if not self.input_channel:
-                        self.input_channel = self.channel
+                elif ch > 0 and ch < 256:
+                    input_bytes += ch.to_bytes(1, byteorder='big')
+                    decoded = input_bytes.decode(errors='ignore')
+                    if len(decoded) > 0:
+                        self.input += decoded
+                        input_bytes = b""
+                        if not self.input_channel:
+                            self.input_channel = self.channel
 
             stdscr.timeout(GETCH_READ_TIMEOUT)
             while True:
