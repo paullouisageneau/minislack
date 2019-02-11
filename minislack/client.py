@@ -61,7 +61,7 @@ class Client:
         # Channel
         text = re.sub('<#(\\S+)>', lambda m: format_channel(m.group(1)), text)
         # Command
-        text = re.sub('<!(\\S+)(?:\\|(\\S+))?>', lambda m: '!' + m.group(2), text)
+        text = re.sub('<!(\\S+)(?:\\|(\\S+))?>', lambda m: '!' + m.group(1), text)
         # With label
         text = re.sub('<(\\S+)\\|(\\S+)>', lambda m: m.group(2), text)
         # Other (URL, etc)
