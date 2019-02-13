@@ -57,15 +57,15 @@ class Client:
             return '#' + self.resolve_channel(channel_id)
 
         # User
-        text = re.sub('<@(\\S+)>', lambda m: format_user(m.group(1)), text)
+        text = re.sub('<@([\\S]+)(?:\\|([^<>]+))>', lambda m: format_user(m.group(1)), text)
         # Channel
-        text = re.sub('<#(\\S+)>', lambda m: format_channel(m.group(1)), text)
+        text = re.sub('<#([\\S]+)(?:\\|([^<>]+))>', lambda m: format_channel(m.group(1)), text)
         # Command
-        text = re.sub('<!(\\S+)(?:\\|(\\S+))?>', lambda m: '!' + m.group(1), text)
+        text = re.sub('<!(?:([^<>]+)\\|)?([^<>]+)>', lambda m: '!' + m.group(2), text)
         # With label
-        text = re.sub('<(\\S+)\\|(\\S+)>', lambda m: m.group(2), text)
-        # Other (URL, etc)
-        text = re.sub('<(\\S+)>', lambda m: m.group(1), text)
+        text = re.sub('<([^<>]+)\\|([^<>]+)>', lambda m: m.group(2), text)
+        # Other (non-labeled URL, etc)
+        text = re.sub('<([^<>]+)>', lambda m: m.group(1), text)
         # Unescape characters
         text = text.replace('&amp;', '&')
         text = text.replace('&lt;', '<')
