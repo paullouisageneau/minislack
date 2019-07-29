@@ -41,14 +41,14 @@ class Interface:
             self.input_channel = None
             self.condition.notify()
 
-    def start(self):
+    def run(self):
 
         def curses_main(stdscr):
             if curses.has_colors():
                 curses.start_color()
                 curses.init_pair(NORMAL_COLOR_PAIR, curses.COLOR_WHITE, curses.COLOR_BLACK)
                 curses.init_pair(HIGHLIGHT_COLOR_PAIR, curses.COLOR_GREEN, curses.COLOR_BLACK)
-                curses.init_pair(INPUT_COLOR_PAIR, curses.COLOR_BLUE, curses.COLOR_BLACK)
+                curses.init_pair(INPUT_COLOR_PAIR, curses.COLOR_YELLOW, curses.COLOR_BLACK)
                 stdscr.attrset(NORMAL_COLOR_PAIR)
             stdscr.clear()
             stdscr.refresh()
@@ -151,28 +151,38 @@ class Interface:
             try:
                 input_main(stdscr)
             except KeyboardInterrupt:
-                _thread.interrupt_main()
+                pass
             except Exception as e:
                 print(e)
+            finally:
                 _thread.interrupt_main()
 
         def curses_wrapper():
             try:
                 curses.wrapper(curses_main)
             except KeyboardInterrupt:
-                _thread.interrupt_main()
+                pass
             except Exception as e:
                 print(e)
-                _thread.interrupt_main()
+            finally:
+                if threading.current_thread() is not threading.main_thread():
+                    _thread.interrupt_main()
 
         self.stopped = False
-        self.curses_thread = threading.Thread(target=curses_wrapper)
+        curses_wrapper()
+        self.terminate()
+
+    def terminate(self):
+        with self.condition:
+            self.stopped = True
+            self.condition.notifyAll()
+
+    def start(self):
+        self.curses_thread = threading.Thread(target=self.run)
         self.curses_thread.start()
 
     def stop(self):
         if self.curses_thread:
-            with self.condition:
-                self.stopped = True
-                self.condition.notifyAll()
+            self.terminate()
             self.curses_thread.join()
             self.curses_thread = None

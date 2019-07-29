@@ -1,11 +1,10 @@
 
-import time
 import re
+import slack
 
-from slackclient import SlackClient
 from .interface import Interface
 
-RTM_READ_DELAY = 200
+TIMEOUT = 60
 
 
 class Client:
@@ -15,38 +14,40 @@ class Client:
         self.last_send_channel = "?"
 
     def connect(self, token):
-        self.sc = SlackClient(token)
-        auth = self.sc.api_call('auth.test')
-        self.user_id = auth['user_id'] if 'user_id' in auth else None
+        webc = slack.WebClient(token=token)
+        auth = webc.api_call('auth.test')
+        self.user_id = auth['user_id']
         if not self.user_id:
             raise Exception('Unable to authenticate to Slack service')
-        if not self.sc.rtm_connect(auto_reconnect=True):
-            raise Exception("Unable to connect to Slack RTM service")
+
+        slack.RTMClient.on(event='message', callback=self.on_message)
+        slack.RTMClient.on(event='error', callback=self.on_error)
+        self.rtmc = slack.RTMClient(token=token, timeout=TIMEOUT)
+        self.webc = slack.WebClient(token=token, timeout=TIMEOUT)
 
     def run(self):
         self.interface.start()
         try:
-            while self.sc.server.connected:
-                time.sleep(RTM_READ_DELAY/1000)
-                for event in self.sc.rtm_read():
-                    if 'type' not in event:
-                        continue
-                    event_type = event['type']
-                    if event_type == 'message':
-                        if 'text' in event and 'channel' in event:
-                            text = self.process_text(event['text'])
-                            channel = self.resolve_channel(event['channel'])
-                            user = self.resolve_user(event['user']) if 'user' in event else None
-                            message = "{}: {}".format(user, text) if user else text
-                            self.interface.recv(channel, message)
-                    elif event_type == 'error':
-                        if 'error' in event:
-                            error = event['error']
-                            msg = error.get('msg', None)
-                            message = message = "!error" + (": {}".format(msg) if msg else "")
-                            self.interface.recv(self.last_send_channel, message)
+            self.rtmc.start()
         finally:
             self.interface.stop()
+
+    def on_message(self, **payload):
+        data = payload['data']
+        if 'text' in data and 'channel' in data:
+            text = self.process_text(data['text'])
+            channel = self.resolve_channel(data['channel'])
+            user = self.resolve_user(data['user']) if 'user' in data else None
+            message = "{}: {}".format(user, text) if user else text
+            self.interface.recv(channel, message)
+
+    def on_error(self, **payload):
+        data = payload['data']
+        if 'error' in data:
+            error = data['error']
+            msg = error.get('msg', None)
+            message = message = "!error" + (": {}".format(msg) if msg else "")
+            self.interface.recv(self.last_send_channel, message)
 
     def process_text(self, text):
 
@@ -80,13 +81,13 @@ class Client:
         text = text.replace('<', '&lt;')
         text = text.replace('>', '&gt;')
         # Send
-        self.sc.rtm_send_message(channel, text)
+        self.webc.rtm_send_message(channel, text)
         self.last_send_channel = channel
         # Display
         self.interface.recv(channel, message)
 
     def resolve_channel(self, channel):
-        response = self.sc.api_call('conversations.info', channel=channel)
+        response = self.webc.api_call('conversations.info', params={'channel': channel})
         if not response['ok']:
             return channel
         info = response['channel']
@@ -97,7 +98,7 @@ class Client:
         return info.get('name_normalized', channel)
 
     def resolve_user(self, user):
-        response = self.sc.api_call('users.info', user=user)
+        response = self.webc.api_call('users.info', params={'user': user})
         if not response['ok']:
             return user
         info = response['user']
