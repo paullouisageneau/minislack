@@ -42,12 +42,9 @@ class Client:
             self.interface.recv(channel, message)
 
     def on_error(self, **payload):
-        data = payload['data']
-        if 'error' in data:
-            error = data['error']
-            msg = error.get('msg', None)
-            message = message = "!error" + (": {}".format(msg) if msg else "")
-            self.interface.recv(self.last_send_channel, message)
+        error = payload['data']
+        message = "!error: {}".format(repr(error))
+        self.interface.recv(self.last_send_channel, message)
 
     def process_text(self, text):
 
